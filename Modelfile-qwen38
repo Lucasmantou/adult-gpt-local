@@ -1,0 +1,5 @@
+FROM D:/Bionic-Data/lmstudio/models/local/Qwen3.8-27B/Qwen3.8-27B-UD-Q4_K_XL.gguf
+
+PARAMETER temperature 0.7
+PARAMETER top_p 0.9
+PARAMETER num_ctx 32768

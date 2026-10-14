@@ -1,0 +1,811 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Qwen-Image-2.1 · 本地生图</title>
+<style>
+  :root, [data-theme="light"]{
+    color-scheme: light;
+    --bg-a:#eef2fb; --bg-b:#f7f9fd;
+    --panel:#ffffff; --panel2:#f1f4fa; --line:#dbe2ee; --line2:#c4cfe0;
+    --txt:#16203a; --sub:#4e5c78; --dim:#78879f;
+    --acc:#3b6fe0; --acc2:#7c4ddb;
+    --ok:#0f8f5a; --warn:#a76a00; --err:#c92f2f;
+    --head:rgba(247,249,253,.92);
+    --chk1:#e4e9f2; --chk2:#f1f4fa;
+    --track:#e5eaf4;
+    --gbtn:#3b6fe0; --gbtn2:#7c4ddb;
+  }
+  [data-theme="dark"]{
+    color-scheme: dark;
+    --bg-a:#1c2748; --bg-b:#111725;
+    --panel:#181f2f; --panel2:#1f2839; --line:#313c53; --line2:#44516d;
+    --txt:#f2f6ff; --sub:#c3cee2; --dim:#93a1ba;
+    --acc:#6f9bff; --acc2:#9478ff;
+    --ok:#4be3a4; --warn:#ffc069; --err:#ff8f8f;
+    --head:rgba(17,23,37,.9);
+    --chk1:#2a3448; --chk2:#1f2839;
+    --track:#0f1420;
+    --gbtn:#5b8cff; --gbtn2:#8b6bff;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{font-size:17px}
+  html,body{height:100%}
+  body{display:flex;flex-direction:column;height:100vh;overflow:hidden;
+       background:radial-gradient(1800px 900px at 75% -15%,var(--bg-a) 0%,var(--bg-b) 60%);
+       color:var(--txt);font-family:"Segoe UI","Microsoft YaHei",system-ui,sans-serif;
+       transition:background .2s,color .2s}
+
+  .wrap{max-width:1900px;margin:0 auto;padding:0 40px;width:100%}
+  .pagebody{flex:1;min-height:0;display:flex;flex-direction:column}
+
+  header{flex:none;border-bottom:1px solid var(--line);backdrop-filter:blur(8px);z-index:20;background:var(--head)}
+  header .wrap{display:flex;align-items:center;justify-content:space-between;gap:18px;flex-wrap:wrap;
+               padding-top:20px;padding-bottom:20px}
+  .logo{font-size:32px;font-weight:700;letter-spacing:.6px;white-space:nowrap;color:var(--txt)}
+  .logo span{background:linear-gradient(90deg,var(--acc),var(--acc2));-webkit-background-clip:text;background-clip:text;color:transparent}
+  .chips{display:flex;gap:12px;flex-wrap:wrap;align-items:center}
+  .chip{font-size:15px;color:var(--sub);background:var(--panel2);border:1px solid var(--line);
+        padding:9px 18px;border-radius:99px;white-space:nowrap}
+  .chip b{color:var(--txt);font-weight:600}
+  .chip.on b{color:var(--ok)} .chip.busy b{color:var(--warn)}
+  .themebtn{font-size:15px;color:var(--sub);background:var(--panel);border:1px solid var(--line2);
+            padding:9px 18px;border-radius:99px;cursor:pointer;font-family:inherit;transition:.15s;white-space:nowrap}
+  .themebtn:hover{color:var(--txt);border-color:var(--acc)}
+
+  main{flex:1;min-height:0;display:grid;grid-template-columns:620px minmax(0,1fr);gap:28px;
+       padding:22px 0 26px;align-items:stretch}
+  @media (max-width:1280px){
+    /* 窄屏退回整页滚动模式 */
+    body{overflow:auto;height:auto;display:block}
+    main{display:block;height:auto}
+    aside.controls,section.gallery{overflow:visible;max-height:none}
+  }
+
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:22px}
+  .controls{padding:28px;padding-bottom:0;display:flex;flex-direction:column;gap:24px;overflow-y:auto;min-height:0;
+            scrollbar-width:thin}
+  /* 生成按钮固定面板底部，无论面板多长都一眼可见 */
+  .stickybar{position:sticky;bottom:0;margin-top:auto;padding:14px 0 24px;background:var(--panel);
+             border-top:1px solid var(--line);display:flex;flex-direction:column;gap:14px;z-index:3}
+  label.t{font-size:17px;color:var(--sub);display:block;margin-bottom:10px}
+  label.t em{font-style:normal;color:var(--acc)}
+  textarea,input[type=text],input[type=number],select{
+    width:100%;background:var(--panel2);border:1px solid var(--line2);color:var(--txt);
+    border-radius:14px;padding:16px 18px;font-size:18px;font-family:inherit;outline:none;transition:border .15s,box-shadow .15s}
+  textarea:focus,input:focus,select:focus{border-color:var(--acc);box-shadow:0 0 0 4px rgba(91,140,255,.18)}
+  textarea{resize:vertical;min-height:160px;line-height:1.65}
+  textarea::placeholder,input::placeholder{color:var(--dim);opacity:1}
+  select{cursor:pointer;appearance:none;
+         background-image:linear-gradient(45deg,transparent 50%,var(--sub) 50%),linear-gradient(135deg,var(--sub) 50%,transparent 50%);
+         background-position:calc(100% - 22px) 50%,calc(100% - 15px) 50%;background-size:7px 7px,7px 7px;background-repeat:no-repeat}
+  select option{background:var(--panel2);color:var(--txt)}
+  .row{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+  .row3{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:16px}
+
+  .tabs{display:grid;grid-template-columns:1fr 1fr 1fr;gap:9px;background:var(--panel2);
+        border:1px solid var(--line);padding:8px;border-radius:17px}
+  .tabs button{background:transparent;border:0;color:var(--sub);font-size:18px;padding:16px 8px;border-radius:12px;
+               cursor:pointer;font-family:inherit;transition:.15s;white-space:nowrap;letter-spacing:.5px}
+  .tabs button:hover{color:var(--txt)}
+  .tabs button.on{background:linear-gradient(90deg,var(--gbtn),var(--gbtn2));color:#fff;font-weight:700}
+  .modehint{font-size:16px;color:var(--sub);line-height:1.7;background:var(--panel2);border:1px solid var(--line);
+            border-radius:13px;padding:15px 18px;margin-top:-8px}
+  .modehint b{color:var(--txt)}
+
+  .filebox{border:2px dashed var(--line2);border-radius:16px;padding:36px 18px;text-align:center;cursor:pointer;
+           color:var(--sub);font-size:17px;transition:.15s}
+  .filebox:hover{border-color:var(--acc);color:var(--txt);background:rgba(91,140,255,.08)}
+  .previews{display:flex;gap:14px;flex-wrap:wrap;margin-top:14px}
+  .pv{position:relative;width:100px;height:100px;border-radius:12px;overflow:hidden;border:1px solid var(--line2)}
+  .card .fav{position:absolute;top:5px;left:5px;width:30px;height:30px;border:0;border-radius:50%;
+    background:rgba(0,0,0,.6);color:#fff;display:flex;align-items:center;justify-content:center;
+    cursor:pointer;z-index:2}
+  .card .fav:active{transform:scale(.92)}
+  .card .fav.on{color:#ff5d7a}
+  .deljob{margin-top:10px;border:1px solid var(--line2);background:transparent;color:var(--sub);
+    padding:8px 16px;border-radius:9px;font:inherit;font-size:13px;cursor:pointer}
+  .gbtn.on{background:var(--acc);color:#fff}
+  .pv img{width:100%;height:100%;object-fit:cover}
+  .pv button{position:absolute;top:5px;right:5px;background:rgba(0,0,0,.75);color:#fff;border:0;
+             width:26px;height:26px;border-radius:50%;font-size:16px;cursor:pointer;line-height:1}
+
+  .btns{display:grid;grid-template-columns:1fr auto;gap:16px}
+  button.primary{background:linear-gradient(90deg,var(--gbtn),var(--gbtn2));border:0;color:#fff;font-weight:700;
+                 padding:22px;border-radius:16px;font-size:22px;cursor:pointer;transition:.15s;letter-spacing:6px}
+  button.primary:hover{filter:brightness(1.08);box-shadow:0 12px 34px rgba(80,120,230,.35)}
+  button.primary:disabled{opacity:.5;cursor:not-allowed;box-shadow:none}
+  button.ghost{background:transparent;border:2px solid var(--line2);color:var(--sub);padding:22px 26px;
+               border-radius:16px;font-size:17px;cursor:pointer;transition:.15s;white-space:nowrap;font-family:inherit}
+  button.ghost:hover{border-color:var(--err);color:var(--err)}
+
+  details{border-top:1px solid var(--line);padding-top:18px}
+  summary{cursor:pointer;color:var(--sub);font-size:17px;user-select:none}
+  summary:hover{color:var(--txt)}
+  details[open] summary{margin-bottom:18px}
+  details .row + div{margin-top:18px}
+  .checkline{display:flex;align-items:center;gap:11px;font-size:17px;color:var(--sub);margin-top:18px;cursor:pointer}
+  .checkline input{accent-color:var(--acc);width:19px;height:19px}
+
+  .progwrap{display:none} .progwrap.show{display:block}
+  .pbar{height:14px;background:var(--track);border-radius:99px;overflow:hidden;border:1px solid var(--line)}
+  .pbar i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--gbtn),var(--gbtn2));
+          transition:width .4s;border-radius:99px}
+  .ptext{font-size:16px;color:var(--sub);margin-top:12px;display:flex;justify-content:space-between}
+  .rangeLine{display:flex;align-items:center;gap:18px}
+  input[type=range]{flex:1;accent-color:var(--acc);height:30px}
+  .rangeVal{font-size:20px;color:var(--txt);min-width:52px;text-align:right;font-variant-numeric:tabular-nums;font-weight:700}
+
+  .gallery{padding:24px 26px;display:flex;flex-direction:column;overflow-y:auto;min-height:0;scrollbar-width:thin}
+  .g-head{flex:none;display:flex;justify-content:space-between;align-items:center;gap:14px;margin-bottom:16px}
+  .g-head h2{font-size:22px;font-weight:650;letter-spacing:.5px;color:var(--txt);white-space:nowrap}
+  .g-info{font-size:14px;color:var(--sub);flex:1}
+  .g-actions{display:flex;gap:10px;flex:none}
+  .gbtn{font-size:13.5px;padding:9px 16px;border-radius:10px;cursor:pointer;font-family:inherit;
+        border:1px solid var(--line2);background:transparent;color:var(--sub);transition:.15s;white-space:nowrap}
+  .gbtn:hover{border-color:var(--err);color:var(--err)}
+  .gbtn.refresh:hover{border-color:var(--acc);color:var(--acc)}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:14px;align-content:start}
+  .card{background:var(--panel2);border:1px solid var(--line);border-radius:12px;overflow:hidden;position:relative;
+        transition:transform .15s,border-color .15s}
+  .card:hover{transform:translateY(-2px);border-color:var(--line2)}
+  .card img{width:100%;display:block;cursor:zoom-in;aspect-ratio:1/1;object-fit:cover;
+            background:repeating-conic-gradient(var(--chk1) 0% 25%,var(--chk2) 0% 50%) 50%/18px 18px}
+  .card .meta{padding:8px 10px;font-size:12px;color:var(--sub);line-height:1.5;
+              white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .card .meta b{color:var(--txt);font-weight:500}
+  .card .del{position:absolute;top:7px;right:7px;width:26px;height:26px;border-radius:50%;border:0;cursor:pointer;
+             background:rgba(0,0,0,.55);color:#fff;font-size:15px;line-height:1;opacity:.35;transition:.15s;z-index:2}
+  .card:hover .del{opacity:1}
+  .card .del:hover{background:var(--err)}
+  .card.running,.card.queued{padding:34px 16px;text-align:center;color:var(--sub);font-size:14px}
+  .card.error{padding:18px 14px;color:var(--err);font-size:13px;line-height:1.6}
+  .shimmer{height:7px;background:var(--track);border-radius:99px;margin-top:14px;overflow:hidden}
+  .shimmer i{display:block;height:100%;background:linear-gradient(90deg,var(--gbtn),var(--gbtn2));
+             width:40%;animation:slide 1.2s infinite linear}
+  @keyframes slide{0%{margin-left:-40%}100%{margin-left:100%}}
+  .empty{margin:auto;text-align:center;color:var(--sub);padding:60px 24px;font-size:18px;line-height:2}
+  .empty .big{font-size:76px;opacity:.5;margin-bottom:10px}
+  .empty .eg{cursor:pointer;color:var(--acc);text-decoration:underline dotted;font-size:16px}
+  .empty .eg:hover{color:var(--acc2)}
+
+  /* 滚动条（深色） */
+  ::-webkit-scrollbar{width:10px;height:10px}
+  ::-webkit-scrollbar-track{background:transparent}
+  ::-webkit-scrollbar-thumb{background:var(--line2);border-radius:99px}
+  ::-webkit-scrollbar-thumb:hover{background:var(--acc)}
+
+  .modal{position:fixed;inset:0;background:rgba(0,0,0,.88);display:flex;align-items:center;justify-content:center;
+         z-index:50;padding:34px;cursor:zoom-out}
+  .modal img{max-width:96%;max-height:96vh;border-radius:14px;box-shadow:0 24px 80px rgba(0,0,0,.6);
+             background:repeating-conic-gradient(var(--chk1) 0% 25%,var(--chk2) 0% 50%) 50%/28px 28px}
+  .modal{flex-direction:column;gap:16px}
+  .modalbar{display:flex;gap:12px;cursor:default}
+  .modalbar button{min-height:44px;padding:0 26px;border:0;border-radius:12px;font:inherit;font-size:15px;
+                   font-weight:600;cursor:pointer}
+  .modalbar #dlBtn{background:#fff;color:#141a26}
+  .modalbar #modalClose{background:rgba(255,255,255,.16);color:#fff}
+  .hidden{display:none!important}
+  .srvdown{position:fixed;top:88px;left:50%;transform:translateX(-50%);z-index:40;background:#c92f2f;color:#fff;
+           padding:14px 28px;border-radius:12px;font-size:16px;font-weight:600;letter-spacing:.5px;
+           box-shadow:0 10px 34px rgba(0,0,0,.4);text-align:center;max-width:80vw}
+  #toasts{position:fixed;right:28px;bottom:28px;display:flex;flex-direction:column;gap:12px;z-index:99}
+  .toast{background:var(--panel);border:1px solid var(--line2);border-left:5px solid var(--acc);color:var(--txt);
+         padding:18px 22px;border-radius:13px;font-size:17px;max-width:460px;box-shadow:0 12px 40px rgba(40,60,110,.25);
+         animation:pop .18s ease}
+  .toast.err{border-left-color:var(--err)} .toast.ok{border-left-color:var(--ok)}
+  @keyframes pop{from{transform:translateY(10px);opacity:0}to{transform:none;opacity:1}}
+
+  /* ================= 手机适配（≤760px：顶栏常驻、控件单列、主按钮固定底部） ================= */
+  @media (max-width:760px){
+    html{font-size:16px}
+    body{display:block;height:auto;overflow:auto}
+    .wrap{padding:0 12px}
+    /* 顶栏常驻：返回控制台入口与状态胶囊横向滑动，不挤占版面 */
+    header{position:sticky;top:0}
+    header .wrap{padding:8px 12px;gap:8px;flex-wrap:nowrap;align-items:center}
+    .logo{font-size:15px;flex:0 0 auto}
+    .chips{flex:1 1 auto;flex-wrap:nowrap;overflow-x:auto;gap:6px;padding-bottom:1px;-webkit-overflow-scrolling:touch}
+    .chip,.themebtn{font-size:12px;padding:5px 9px;flex:0 0 auto}
+    main{display:block;padding:12px 0 116px}
+    .panel{border-radius:16px}
+    .controls{padding:14px;gap:16px;overflow:visible}
+    textarea{min-height:120px;font-size:16px;padding:12px 13px}
+    .row,.row3{grid-template-columns:1fr;gap:10px}
+    .tabs{grid-template-columns:1fr 1fr 1fr;gap:6px;padding:6px}
+    .tabs button{font-size:14px;padding:10px 4px;letter-spacing:0;white-space:normal}
+    .modehint{font-size:13px;padding:12px;line-height:1.6}
+    label.t{font-size:15px}
+    select,input[type=text],input[type=number]{font-size:16px;padding:11px 13px}
+    .rangeVal{font-size:17px;min-width:40px}
+    .filebox{padding:22px 12px;font-size:15px}
+    .pv{width:76px;height:76px}
+    /* 生成按钮固定底部，随手可点 */
+    .stickybar{position:fixed;left:0;right:0;bottom:0;margin:0;z-index:30;border-radius:0;
+               padding:10px 12px calc(10px + env(safe-area-inset-bottom));
+               background:var(--panel);border-top:1px solid var(--line);
+               box-shadow:0 -8px 24px rgba(20,30,60,.10)}
+    .btns{grid-template-columns:1fr auto;gap:10px}
+    button.primary{font-size:18px;padding:15px 10px;letter-spacing:3px}
+    button.ghost{padding:15px 14px;font-size:14.5px}
+    .ptext{font-size:13px;margin-top:8px}
+    .gallery{padding:14px;margin-top:14px;overflow:visible}
+    .g-head{flex-wrap:wrap;gap:8px;margin-bottom:12px}
+    .g-head h2{font-size:18px}
+    .g-info{font-size:12.5px;flex:1 1 100%;order:3}
+    .grid{grid-template-columns:repeat(auto-fill,minmax(132px,1fr));gap:10px}
+    .card .del{opacity:.85}
+    .card .meta{font-size:11px}
+    .empty{padding:36px 12px;font-size:15px}
+    .empty .big{font-size:52px}
+    #toasts{left:12px;right:12px;bottom:112px}
+    .toast{font-size:15px;padding:13px 15px;max-width:none}
+    .modal{padding:10px}
+    .srvdown{top:auto;bottom:118px;font-size:13.5px;padding:10px 14px;max-width:92vw}
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <div class="logo">Qwen-Image <span>2.1</span> · 本地生图</div>
+    <div class="chips">
+      <a class="themebtn" href="/hub" id="backHub" style="text-decoration:none">← 模型控制台</a>
+      <div class="chip" id="chipVram">显存 <b>…</b></div>
+      <div class="chip" id="chipModel">模型 <b>未加载</b></div>
+      <div class="chip" id="chip2k">2K优化 <b>—</b></div>
+      <div class="chip" id="chipMode"></div>
+      <div class="chip" id="chipBusy">状态 <b>…</b></div>
+      <button class="themebtn" id="themeBtn">🌙 深色</button>
+    </div>
+  </div>
+</header>
+
+<div class="wrap pagebody">
+<main>
+  <aside class="panel controls">
+    <div class="tabs" id="tabs">
+      <button data-mode="t2i" class="on">文生图</button>
+      <button data-mode="edit">图生图 / 编辑</button>
+      <button data-mode="rgba">透明图 PNG</button>
+    </div>
+    <div class="modehint" id="modeHint"></div>
+
+    <div>
+      <label class="t">提示词 <em>*</em>（中英文均可，越具体越好）</label>
+      <textarea id="prompt" placeholder=""></textarea>
+    </div>
+
+    <div id="uploadWrap" class="hidden">
+      <label class="t">参考图 <em>*</em>（可拖拽，最多 10 张；多张可做合影 / 换装 / 商品合成）</label>
+      <div class="filebox" id="filebox">＋ 点击选择图片，或拖拽到此处</div>
+      <input type="file" id="fileIn" accept="image/*" multiple hidden>
+      <div class="previews" id="previews"></div>
+    </div>
+
+    <div class="row3">
+      <div>
+        <label class="t">画面比例</label>
+        <select id="ratio">
+          <option value="auto">自动</option>
+          <option value="1:1" selected>1:1 方形</option>
+          <option value="4:3">4:3 横</option>
+          <option value="3:4">3:4 竖</option>
+          <option value="3:2">3:2 横</option>
+          <option value="2:3">2:3 竖</option>
+          <option value="16:9">16:9 宽屏</option>
+          <option value="9:16">9:16 竖屏</option>
+        </select>
+      </div>
+      <div>
+        <label class="t">输出画质</label>
+        <select id="quality">
+          <option value="20">快速 20步</option>
+          <option value="40" selected>标准 40步</option>
+          <option value="50">精细 50步</option>
+          <option value="60">极致 60步</option>
+        </select>
+      </div>
+      <div>
+        <label class="t">分辨率</label>
+        <select id="resolution">
+          <option value="standard" selected>官方推荐</option>
+          <option value="half">预览 ½</option>
+        </select>
+      </div>
+      <div>
+        <label class="t">模型版本</label>
+        <select id="variant">
+          <option value="std" selected>官方版</option>
+          <option value="uc">无审核版</option>
+        </select>
+      </div>
+    </div>
+
+    <div>
+      <label class="t">采样步数（跟随画质档位，可微调）</label>
+      <div class="rangeLine">
+        <input type="range" id="steps" min="10" max="60" value="40">
+        <span class="rangeVal" id="stepsVal">40</span>
+      </div>
+    </div>
+
+    <div class="row">
+      <div>
+        <label class="t">生成张数</label>
+        <select id="num"><option>1</option><option>2</option><option>3</option><option>4</option></select>
+      </div>
+      <div>
+        <label class="t">随机种子（留空随机）</label>
+        <input type="text" id="seed" placeholder="如 42">
+      </div>
+    </div>
+
+    <div>
+      <label class="t">设备模式（显存策略）</label>
+      <select id="devmode">
+        <option value="auto">自动（推荐）</option>
+        <option value="full">全速 · 模型全上显卡</option>
+        <option value="offload">省显存 · 靠内存搬运</option>
+      </select>
+      <div class="modehint" style="margin-top:12px">
+        <b>全速</b>：最快，需 ≥41GB 空闲显存。<b>省显存</b>：靠内存搬运，需 ≥35GB 空闲内存（本机内存 32GB 通常不够）。
+        <br><b>关于 2K 分辨率</b>：2K 出图额外需要约 13GB 显存。若右上角「2K优化」显示<b>已启用</b>（需 ≥18GB 空闲内存，服务启动时自动判断），则 2K 可直接使用；显示<b>内存不足</b>时请用「预览½」，或关闭本地大模型后重启服务。
+      </div>
+    </div>
+
+    <div class="stickybar">
+      <div class="btns">
+        <button class="primary" id="btnGen">开 始 生 成</button>
+        <button class="ghost" id="btnUnload" title="卸载生图模型，把显存让给本地大模型">卸载模型</button>
+      </div>
+      <div class="progwrap" id="progwrap">
+        <div class="pbar"><i id="pbarFill"></i></div>
+        <div class="ptext"><span id="pstage">排队中…</span><span id="ptime"></span></div>
+      </div>
+    </div>
+
+    <details>
+      <summary>高级参数</summary>
+      <div class="row">
+        <div>
+          <label class="t">true_cfg（1=官方推荐）</label>
+          <input type="number" id="cfg" value="1" min="1" max="8" step="0.5">
+        </div>
+      <div>
+        <label class="t">负向提示词</label>
+        <input type="text" id="neg" placeholder="模糊, 低质量">
+      </div>
+      </div>
+    </details>
+  </aside>
+
+  <section class="panel gallery">
+    <div class="g-head">
+      <h2>作品集</h2>
+      <div class="g-info" id="gInfo"></div>
+      <div class="g-actions">
+        <button class="gbtn" id="btnFav" title="我的收藏：点过心的图都在这里，仅管理员可见">收藏夹</button>
+        <button class="gbtn" id="btnClear" title="删除所有已生成的图片，释放磁盘空间">清空全部</button>
+      </div>
+    </div>
+    <div class="grid" id="grid"></div>
+    <div class="empty" id="empty">
+      <div class="big">🖼</div>
+      还没有作品
+      <div class="eg" id="egBtn">点这里填入一条示例提示词试试 →</div>
+    </div>
+  </section>
+</main>
+</div>
+
+<div class="modal hidden" id="modal">
+  <img id="modalImg" alt="">
+  <div class="modalbar">
+    <button type="button" id="dlBtn">下载原图</button>
+    <button type="button" id="modalClose">关闭</button>
+  </div>
+</div>
+<div id="srvDown" class="srvdown hidden">⚠️ 服务已停止 —— 本页显示的是缓存内容。请重新运行「启动界面.bat」；此标签页可关闭。</div>
+<div id="toasts"></div>
+
+<script>
+const $ = id => document.getElementById(id);
+let selFiles = [];
+
+/* ---------- 断线/重载不丢稿：参考图存 IndexedDB，提示词/模式存 localStorage ---------- */
+const IDB = (() => {
+  let db = null;
+  function open() {
+    return new Promise(res => {
+      if (db) return res(db);
+      const q = indexedDB.open("qwen_draft", 1);
+      q.onupgradeneeded = () => q.result.createObjectStore("files");
+      q.onsuccess = () => { db = q.result; res(db); };
+      q.onerror = () => res(null);
+    });
+  }
+  return {
+    async save(files) {
+      const d = await open(); if (!d) return;
+      const tx = d.transaction("files", "readwrite");
+      tx.objectStore("files").clear();
+      files.forEach((f, i) => tx.objectStore("files").put(f, i));
+    },
+    async load() {
+      const d = await open(); if (!d) return [];
+      return new Promise(res => {
+        const rq = d.transaction("files").objectStore("files").getAll();
+        rq.onsuccess = () => res(rq.result || []);
+        rq.onerror = () => res([]);
+      });
+    }
+  };
+})();
+function saveDraft() {
+  try {
+    localStorage.setItem("qwen_draft", JSON.stringify({
+      mode: uiMode, prompt: $("prompt").value,
+      ratio: $("ratio").value, quality: $("quality").value, num: $("num").value
+    }));
+  } catch (e) {}
+  IDB.save(selFiles);
+}
+function restoreDraft() {
+  try {
+    const d = JSON.parse(localStorage.getItem("qwen_draft") || "null");
+    if (d) {
+      if (d.mode) setMode(d.mode);
+      if (d.prompt != null) $("prompt").value = d.prompt;
+      if (d.ratio) $("ratio").value = d.ratio;
+      if (d.quality) { $("quality").value = d.quality; $("steps").value = d.quality; $("stepsVal").textContent = d.quality; }
+      if (d.num) $("num").value = d.num;
+    }
+  } catch (e) {}
+  IDB.load().then(files => { if (files.length) { selFiles = files; renderPreviews(); } });
+}
+["prompt", "ratio", "quality", "num"].forEach(id => {
+  $(id).addEventListener("change", saveDraft);
+  $(id).addEventListener("input", saveDraft);
+});
+let uiMode = "t2i";
+let lastJobsKey = "", lastStatusKey = "";
+
+/* ---------- 主题切换 ---------- */
+function applyTheme(t) {
+  document.documentElement.dataset.theme = t;
+  $("themeBtn").textContent = t === "light" ? "🌙 深色" : "☀️ 浅色";
+  try { localStorage.setItem("qwen_ui_theme", t); } catch (e) {}
+}
+$("themeBtn").onclick = () =>
+  applyTheme(document.documentElement.dataset.theme === "light" ? "dark" : "light");
+applyTheme((() => { try { return localStorage.getItem("qwen_ui_theme") || "light"; } catch (e) { return "light"; } })());
+
+const MODE_HINT = {
+  t2i:  "根据文字描述从零生成图像。",
+  edit: "<b>上传参考图</b>后描述想怎么改：替换背景、换服装、合并多张图（合影 / 商品合成）等，最多 10 张。",
+  rgba: "生成带透明背景的 PNG 素材（贴纸 / 图标 / 立绘），会自动套用官方透明图提示词模板。"
+};
+const EXAMPLE = "一位穿汉服的少女站在竹林里，晨雾，柔和的自然光，胶片摄影";
+const PLACEHOLDER_T2I = "例：" + EXAMPLE + "\n图上要出现的文字用引号包住：招牌写着 \"你好世界\"";
+const PLACEHOLDER_EDIT = "描述修改内容，例：把背景换成黄昏的海滩 / 让两个人站在一起合影";
+
+function toast(msg, cls = "") {
+  const d = document.createElement("div");
+  d.className = "toast " + cls;
+  d.textContent = msg;
+  $("toasts").appendChild(d);
+  setTimeout(() => d.remove(), 4200);
+}
+
+function setMode(mode) {
+  uiMode = mode;
+  [...$("tabs").children].forEach(x => x.classList.toggle("on", x.dataset.mode === mode));
+  $("modeHint").innerHTML = MODE_HINT[mode];
+  $("uploadWrap").classList.toggle("hidden", mode !== "edit");
+  $("prompt").placeholder = mode === "edit" ? PLACEHOLDER_EDIT : PLACEHOLDER_T2I;
+}
+$("tabs").onclick = e => {
+  const b = e.target.closest("button");
+  if (b) setMode(b.dataset.mode);
+};
+setMode("t2i");
+
+$("quality").onchange = () => { $("steps").value = $("quality").value; $("stepsVal").textContent = $("steps").value; };
+$("steps").oninput = () => {
+  $("stepsVal").textContent = $("steps").value;
+  const match = [...$("quality").options].find(o => o.value === $("steps").value);
+  if (match) $("quality").value = match.value;
+};
+
+function renderPreviews() {
+  const box = $("previews"); box.innerHTML = "";
+  selFiles.forEach((f, i) => {
+    const d = document.createElement("div"); d.className = "pv";
+    const img = document.createElement("img"); img.src = URL.createObjectURL(f);
+    const b = document.createElement("button"); b.textContent = "×";
+    b.onclick = () => { selFiles.splice(i, 1); renderPreviews(); saveDraft(); };
+    d.append(img, b); box.appendChild(d);
+  });
+}
+$("fileIn").onchange = e => {
+  for (const f of e.target.files) if (selFiles.length < 10) selFiles.push(f);
+  e.target.value = ""; renderPreviews(); saveDraft();
+};
+$("filebox").onclick = () => $("fileIn").click();
+$("filebox").ondragover = e => e.preventDefault();
+$("filebox").ondrop = e => {
+  e.preventDefault();
+  for (const f of e.dataTransfer.files) if (f.type.startsWith("image/") && selFiles.length < 10) selFiles.push(f);
+  renderPreviews(); saveDraft();
+};
+
+$("btnGen").onclick = async () => {
+  const prompt = $("prompt").value.trim();
+  if (!prompt) { toast("先写提示词呀", "err"); return; }
+  if (uiMode === "edit" && selFiles.length === 0) { toast("图生图模式需要先上传至少一张参考图", "err"); return; }
+
+  const fd = new FormData();
+  fd.append("prompt", prompt);
+  fd.append("ratio", $("ratio").value);
+  fd.append("variant", $("variant").value);
+  fd.append("resolution", $("resolution").value);
+  fd.append("steps", $("steps").value);
+  fd.append("num", $("num").value);
+  fd.append("cfg", $("cfg").value);
+  fd.append("mode", $("devmode").value);
+  if (uiMode === "rgba") fd.append("rgba", "1");
+  if ($("seed").value.trim()) fd.append("seed", $("seed").value.trim());
+  if ($("neg").value.trim()) fd.append("negative", $("neg").value.trim());
+  if (uiMode === "edit") selFiles.forEach(f => fd.append("images", f));
+
+  $("btnGen").disabled = true;
+  try {
+    const r = await fetch("/api/generate", { method: "POST", body: fd });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error || ("HTTP " + r.status));
+    toast("任务已提交 ✔", "ok");
+    poll();
+  } catch (e) {
+    toast(e.message, "err");
+    $("btnGen").disabled = false;
+  }
+};
+
+$("btnUnload").onclick = async () => {
+  try {
+    const r = await fetch("/api/unload", { method: "POST" });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error || ("HTTP " + r.status));
+    toast("模型已卸载，显存已释放", "ok");
+    pollStatus();
+  } catch (e) { toast(e.message, "err"); }
+};
+
+$("egBtn").onclick = () => { setMode("t2i"); $("prompt").value = EXAMPLE; $("prompt").focus(); };
+
+$("variant").onchange = async () => {
+  const v = $("variant").value;
+  $("variant").dataset.userPicking = "1";
+  const name = v === "uc" ? "无审核版" : "官方版";
+  if (!confirm(`切换到「${name}」？\n切换后会卸载当前模型，下次生成时自动加载新版（首次约 1-2 分钟）。`)) {
+    delete $("variant").dataset.userPicking; return;
+  }
+  try {
+    const fd = new FormData(); fd.append("variant", v);
+    const r = await fetch("/api/variant", { method: "POST", body: fd }).then(x => x.json());
+    if (r.error) { toast(r.error, "err"); return; }
+    toast(`已切换到${r.label}，下次生成时生效`);
+    setTimeout(() => delete $("variant").dataset.userPicking, 8000);
+  } catch (e) {
+    toast("切换失败：" + e.message, "err");
+    delete $("variant").dataset.userPicking;
+  }
+};
+
+let srvFail = 0;
+async function pollStatus() {
+  try {
+    const s = await fetch("/api/status").then(r => r.json());
+    srvFail = 0;
+    $("srvDown").classList.add("hidden");
+    const key = JSON.stringify(s);
+    if (key !== lastStatusKey) {
+      lastStatusKey = key;
+      if (s.total_gb != null)
+        $("chipVram").innerHTML = `显存 <b>${(s.total_gb - s.free_gb).toFixed(1)} / ${s.total_gb.toFixed(0)} GB</b>`;
+      $("chipModel").innerHTML = s.loaded ? "模型 <b>已加载</b>" : "模型 <b>未加载</b>";
+      $("chipModel").className = "chip" + (s.loaded ? " on" : "");
+      const ram = s.free_ram_gb ?? 0;
+      $("chip2k").innerHTML = s.te_offload
+        ? "2K优化 <b>已启用</b>"
+        : (ram >= 18 ? "2K优化 <b>待启用</b>" : `2K优化 <b>内存不足</b>`);
+      $("chip2k").className = "chip" + (s.te_offload ? " on" : "");
+      $("chip2k").title = s.te_offload
+        ? "文本编码器已改为编码后卸载到内存，2K 分辨率可用"
+        : `启用需 ≥18GB 空闲内存（当前 ${ram}GB）。关掉本地大模型（llama-server）后重启本服务即可自动启用。`;
+      $("chipMode").innerHTML = s.loaded ? `模式 <b>${s.mode === "full" ? "全速" : "省显存"}</b>` : "";
+      $("chipBusy").innerHTML = s.busy ? "状态 <b>生成中…</b>" : "状态 <b>空闲</b>";
+      $("chipBusy").className = "chip" + (s.busy ? " busy" : " on");
+      // 模型版本：同步下拉框状态（部署未完成时禁用无审核选项）
+      if (s.variants) {
+        for (const o of $("variant").options) {
+          const info = s.variants[o.value];
+          o.disabled = info && !info.available;
+          o.textContent = info ? info.label + (info.available ? "" : "（未部署）") : o.textContent;
+        }
+        if (!$("variant").dataset.userPicking && s.variant && !$("variant").matches(":focus"))
+          $("variant").value = s.variant;
+      }
+    }
+    if (!s.busy) $("btnGen").disabled = false;
+  } catch (e) {
+    if (++srvFail >= 5) $("srvDown").classList.remove("hidden");
+  }
+}
+
+function esc(t) { const d = document.createElement("div"); d.textContent = t ?? ""; return d.innerHTML; }
+
+function renderJobs(jobs) {
+  const grid = $("grid"), items = [];
+  for (const j of jobs) {
+    if (j.status === "done") {
+      const P = j.params || {};
+      for (const url of j.images) {
+        const name = url.split("/").pop();
+        const meta = [j.size || "", P.steps ? `${P.steps}步` : "", P.seed != null ? `S${P.seed}` : "",
+                      j.elapsed ? `${j.elapsed}s` : ""].filter(Boolean).join(" · ");
+        items.push(`<div class="card" title="${esc(P.prompt || "")}">
+          <button class="del" title="删除这张图（释放磁盘空间）" onclick="deleteImg('${name}', event)">×</button>
+          <button class="fav" title="收藏：移入个人收藏夹（仅管理员可见）" onclick="favImg('${name}', event)"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M12 20.3l-7.1-7.1a4.7 4.7 0 016.6-6.6l.5.5.5-.5a4.7 4.7 0 016.6 6.6z"/></svg></button>
+          <img src="${url}?w=480" loading="lazy" data-full="${url}" onclick="openModal(this.dataset.full)">
+          <div class="meta">${esc(meta)}</div>
+        </div>`);
+      }
+    } else if (j.status === "error") {
+      items.push(`<div class="card error">❌ 生成失败<br>${esc(j.error)}<br><button class="deljob" onclick="delJob('${j.id}')">删除这条记录</button></div>`);
+    } else {
+      items.push(`<div class="card ${j.status}">
+        ${j.status === "running" ? `⏳ 生成中 ${j.progress || 0}%` : "🕐 排队中…"}
+        <div class="shimmer"><i></i></div>
+      </div>`);
+    }
+    if (items.length >= 200) break;
+  }
+  grid.innerHTML = items.join("");
+  $("empty").style.display = items.length ? "none" : "block";
+}
+
+async function deleteImg(name, ev) {
+  if (ev) ev.stopPropagation();
+  try {
+    const r = await fetch("/api/delete", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ names: [name] }),
+    });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error || ("HTTP " + r.status));
+    toast("已删除该图片", "ok");
+    lastJobsKey = "";
+    poll();
+  } catch (e) { toast(e.message, "err"); }
+}
+
+$("btnClear").onclick = async () => {
+  if (!confirm("确定删除所有已生成的图片吗？删除后不可恢复。")) return;
+  try {
+    const r = await fetch("/api/delete", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ all: true }),
+    });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error || ("HTTP " + r.status));
+    toast(`已清空（删除 ${d.removed} 个文件）`, "ok");
+    lastJobsKey = "";
+    poll();
+  } catch (e) { toast(e.message, "err"); }
+};
+
+function renderProgress(jobs) {
+  const active = jobs.find(j => j.status === "running" || j.status === "queued");
+  if (active) {
+    $("progwrap").classList.add("show");
+    $("pbarFill").style.width = (active.progress || 0) + "%";
+    $("pstage").textContent = active.status === "running"
+      ? `生成中 ${active.progress}%（${active.mode_used === "offload" ? "省显存" : active.mode_used === "full" ? "全速" : ""}）`
+      : "排队中，正在加载模型…";
+    $("ptime").textContent = active.elapsed ? `已用时 ${active.elapsed}s` : "";
+  } else {
+    $("progwrap").classList.remove("show");
+  }
+}
+
+async function poll() {
+  await pollStatus();
+  try {
+    const jobs = await fetch("/api/jobs").then(r => r.json());
+    const key = JSON.stringify(jobs.map(j => [j.id, j.status, j.progress, j.images.length]));
+    if (key !== lastJobsKey) { lastJobsKey = key; renderJobs(jobs); }
+    renderProgress(jobs);
+    const st = await fetch("/api/storage").then(r => r.json());
+    const info = st.count ? `共 ${st.count} 张 · 占用 ${st.size_mb} MB` : "暂无图片";
+    if ($("gInfo").textContent !== info) $("gInfo").textContent = info;
+  } catch (e) {}
+}
+
+let modalSrc = null;
+/* ---------- 收藏 ---------- */
+const HEART_SVG = '<svg viewBox="0 0 24 24" width="17" height="17" fill="currentColor" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M12 20.3l-7.1-7.1a4.7 4.7 0 016.6-6.6l.5.5.5-.5a4.7 4.7 0 016.6 6.6z"/></svg>';
+function post(path, obj) {
+  return fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(obj) }).then(r => r.json());
+}
+function favImg(name, e) {
+  if (e) e.stopPropagation();
+  post('/api/favorite/add', { name }).then(d => {
+    if (d.error) { toast(d.error, 'err'); return; }
+    toast('已收入收藏夹（仅你可见）', 'ok');
+    lastJobsKey = ''; poll();
+  });
+}
+function unfav(name, act, e) {
+  if (e) e.stopPropagation();
+  post('/api/favorite/remove', { name, action: act }).then(d => {
+    if (d.error) { toast(d.error, 'err'); return; }
+    toast(act === 'delete' ? '已删除' : '已放回作品集', 'ok');
+    if (favMode) renderFavs(); else { lastJobsKey = ''; poll(); }
+  });
+}
+function delJob(id) {
+  post('/api/jobs/delete', { id }).then(() => { lastJobsKey = ''; poll(); });
+}
+let favMode = false;
+$("btnFav").onclick = async () => {
+  favMode = !favMode;
+  $("btnFav").classList.toggle('on', favMode);
+  if (favMode) { renderFavs(); }
+  else { lastJobsKey = ''; poll(); }
+};
+async function renderFavs() {
+  const d = await fetch('/api/favorite/list').then(r => r.json());
+  const grid = $("grid");
+  if (!d.items.length) {
+    grid.innerHTML = '<p style="grid-column:1/-1;color:var(--sub);font-size:14px">收藏夹是空的：点图片左上角的心形即可收藏。</p>';
+    $("empty").style.display = 'none';
+    return;
+  }
+  grid.innerHTML = d.items.map(it => {
+    const n = encodeURIComponent(it.name);
+    return `<div class="card">
+      <button class="del" title="删除文件" onclick="unfav('${n}','delete',event)">×</button>
+      <button class="fav on" title="取消收藏，放回作品集" onclick="unfav('${n}','unfav',event)">${HEART_SVG}</button>
+      <img src="/favorites/${n}?w=480" loading="lazy" data-full="/favorites/${n}" onclick="openModal(this.dataset.full)">
+      <div class="meta">${new Date((it.ts || 0) * 1000).toLocaleString('zh-CN', {month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'})}</div>
+    </div>`;
+  }).join("");
+  $("empty").style.display = 'none';
+}
+
+function openModal(src) {
+  modalSrc = src; $("modalImg").src = src; $("modal").classList.remove("hidden");
+}
+$("modal").onclick = e => { if (e.target.tagName !== "BUTTON") $("modal").classList.add("hidden"); };
+$("modalClose").onclick = () => $("modal").classList.add("hidden");
+$("dlBtn").onclick = () => { if (modalSrc) location.href = modalSrc + "?dl=1"; };
+document.addEventListener("keydown", e => { if (e.key === "Escape") $("modal").classList.add("hidden"); });
+
+restoreDraft();
+poll();
+setInterval(poll, 1500);
+</script>
+<script>
+/* 返回入口自适应：经 h3 网页代理（/qwen/）访问时用相对路径 /hub；直连 7860 时指向本机控制台 */
+(function () {
+  var a = document.getElementById("backHub");
+  if (a && location.port === "7860") a.href = "http://127.0.0.1:9095/hub";
+})();
+</script>
+</body>
+</html>

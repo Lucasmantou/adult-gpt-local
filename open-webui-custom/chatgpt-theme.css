@@ -1,0 +1,75 @@
+/* ChatGPT Theme CSS */
+
+/* Force ALL sidebar/nav text to black - override Tailwind scoped styles */
+nav, nav *, nav a, nav a *, nav button, nav button * {
+  color: #000 !important;
+  fill: #000 !important;
+}
+
+/* Override specific Tailwind color classes */
+.text-indigo-400 { color: #000 !important; }
+.text-indigo-500 { color: #000 !important; }
+.text-indigo-600 { color: #000 !important; }
+.text-green-500 { color: #000 !important; }
+.text-teal-500 { color: #000 !important; }
+
+/* Hide the small "oi" icon at top left - it's the Open WebUI logo */
+img.sidebar-new-chat-icon {
+  display: none !important;
+}
+
+/* Hide any Open WebUI logo images in sidebar */
+nav img[src*="logo"],
+nav img[src*="splash"],
+nav img[src*="favicon"] {
+  display: none !important;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 8px !important; }
+::-webkit-scrollbar-track { background: transparent !important; }
+::-webkit-scrollbar-thumb { background: #cdced3 !important; border-radius: 4px !important; }
+::-webkit-scrollbar-thumb:hover { background: #9a9aa6 !important; }
+
+/* Action buttons */
+.chatgpt-actions {
+  display: flex !important;
+  justify-content: center !important;
+  gap: 12px !important;
+  margin-top: 12px !important;
+  flex-wrap: wrap !important;
+}
+
+.chatgpt-action-btn {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  padding: 10px 16px !important;
+  background: #ffffff !important;
+  border: 1px solid #d9d9e3 !important;
+  border-radius: 24px !important;
+  color: #6e6e80 !important;
+  font-size: 14px !important;
+  cursor: pointer !important;
+  transition: all 0.2s !important;
+  font-family: inherit !important;
+}
+
+.chatgpt-action-btn:hover {
+  background: #f4f4f4 !important;
+  border-color: #10a37f !important;
+  color: #10a37f !important;
+}
+
+.chatgpt-action-btn svg {
+  width: 16px !important;
+  height: 16px !important;
+}
+
+/* ChatGPT logo */
+.gpt-logo {
+  width: 28px !important;
+  height: 28px !important;
+  border-radius: 4px !important;
+  object-fit: contain !important;
+}

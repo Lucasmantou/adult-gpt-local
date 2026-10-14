@@ -1,0 +1,59 @@
+# ===== 敏感信息：绝不上传 =====
+auth.json
+*.key
+*.pem
+id_rsa*
+
+# ===== 模型权重 / 大文件（下载或自行放置） =====
+models/
+Ollama/
+qwen-image-service/models/
+qwen-image-service/venv/
+qwen-image-service/wheels/
+qwen-image-service/diffusers-main/
+*.gguf
+*.safetensors
+*.bin
+
+# ===== 运行时数据 / 日志 =====
+*.log
+qwen-run.log
+server_run.log
+unlimited_worker*.log
+qwen-image-service/outputs/
+qwen-image-service/uploads/
+qwen-image-service/favorites/
+qwen-image-service/favorites.json
+qwen-image-service/qwen_variant.json
+qwen-image-service/.server.lock
+qwen-image-service/__pycache__/
+__pycache__/
+*.pyc
+
+# ===== 本地备份 / 反馈截图（私人资料） =====
+*.原版备份*
+*.备份-*
+反馈/
+截图反馈/
+服务器信息/
+服务器部署指南.md
+部署说明.md
+下载*.log
+finish-*.log
+download-*.sh
+finish-*.sh
+download-g42.log
+download-q36.log
+finish-g42.log
+finish-q36.log
+
+# ===== 历史遗留：内嵌仓库的旧 git 目录 =====
+chatgpt-clone/.git/
+
+# ===== 系统/编辑器 =====
+Thumbs.db
+.DS_Store
+*.tmp
+check.tmp.js
+check.tmp.png
+chatgpt-clone-git-history/
