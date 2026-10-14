@@ -2,13 +2,13 @@
 
 一套**完全跑在自己电脑上**的 ChatGPT 风格私有 AI 平台：网页聊天界面 + 本地大语言模型（Ollama）+ 本地 AI 生图（Qwen-Image-2.1），带密码保护，可选公网访问。所有数据、所有推理都留在本机。
 
-| 首页 | 设置面板 |
+| 首页 | 模型设置 |
 |---|---|
-| ![首页](docs/screenshots/01-home.png) | ![设置面板](docs/screenshots/02-settings-panel.png) |
+| ![首页](docs/screenshots/首页.jpg) | ![模型设置](docs/screenshots/模型设置.jpg) |
 
-| 对话生图 |
-|---|
-| ![对话生图](docs/screenshots/03-chat-image.png) |
+| 文字对话 | 图片生成 |
+|---|---|
+| ![文字对话](docs/screenshots/文字对话.jpg) | ![图片生成](docs/screenshots/图片生成.jpg) |
 
 ## 功能特性
 
